@@ -1,0 +1,179 @@
+---
+import PortfolioImageAnverso from '../assets/images/portfolio-anverso.png';
+import PortfolioImageReverso from '../assets/images/portfolio-reverso.png';
+import PortfolioImageProjects from '../assets/images/portfolio-projects.png';
+
+import GlaizeaLogin from '../assets/images/glaizea-login.png';
+import GlaizeaList from '../assets/images/glaizea-logo.png';
+
+import ItziarDefault from '../assets/images/itziar-default.png';
+import ItziarCalcular from '../assets/images/itziar-calcular.png';
+import ItziarInventario from '../assets/images/itziar-inventario.png';
+import ItziarRecetario from '../assets/images/itziar-recetario.png';
+
+import PersonalNotesInicio from '../assets/images/personal-notes-inicio.png';
+import PersonalNotesBlog from '../assets/images/personal-notes-blog.png';
+
+---
+
+<section class="text-gray-100 pb-20">
+		<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+		{
+			[
+				{
+					title: "Portfolio Personal",
+					desc: "Sitio estático con Astro y Tailwind, integración de imágenes optimizadas.",
+					tags: ["Astro", "Tailwind", "TS", "EmailJS"],
+					images: [
+					PortfolioImageAnverso.src,
+					PortfolioImageProjects.src,
+					PortfolioImageReverso.src
+					],
+					link: "#"
+				},
+				{
+					title: "Glaizea App",
+					desc: "Creador de helados artesanales con recetas personalizadas",
+					tags: ["Expo", "React Native", "Laravel", "PostgreSQL", "Stripe"],
+					images: [
+					GlaizeaLogin.src,
+						GlaizeaList.src
+					],
+					link: "#"
+				},
+				{
+					title: "Bar Asador Itziar",
+					desc: "Aplicacion para crear escandallos y gestion de productos.",
+					tags: ["React", "Electron Vite", "Tailwind", "TS", "SQLite", "Spring Boot"],
+					images: [
+					ItziarDefault.src,
+					ItziarCalcular.src,
+					ItziarInventario.src,
+					ItziarRecetario.src
+					],
+					link: "#"
+				},
+				{
+					title: "Personal notes",
+					desc: "Proyecto de TFG para apuntar notas personales con sistema de etiquetas.",
+					tags: ["React", "MySQL", "Firebase Auth", "TS"],
+					images: [
+					PersonalNotesInicio.src,
+					PersonalNotesBlog.src
+					],
+					link: "#"
+				}
+			].map((p, idx) => (
+				<div class="group border border-gray-800 rounded-lg overflow-hidden bg-black/30 hover:bg-black/50 transition-colors">
+					<!-- Carousel + title -->
+					<div class="relative">
+						<div class="aspect-video bg-gray-900 overflow-hidden">
+							<img
+								src={p.images[0]}
+								alt={`Imagen de ${p.title}`}
+								class="w-full h-full object-cover block"
+								data-carousel-img
+								data-carousel-index={idx}
+							/>
+						</div>
+						<!-- Controls -->
+						<button
+							class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white text-xs px-2 py-1 rounded"
+							data-carousel-prev
+							data-carousel-index={idx}
+							aria-label="Anterior"
+						>
+							‹
+						</button>
+						<button
+							class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white text-xs px-2 py-1 rounded"
+							data-carousel-next
+							data-carousel-index={idx}
+							aria-label="Siguiente"
+						>
+							›
+						</button>
+						<!-- Title overlay (fix gradient class) -->
+						<div class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent p-3">
+							<a href={p.link} class="text-base font-semibold text-white">{p.title}</a>
+						</div>
+					</div>
+
+					<!-- Body -->
+					<div class="p-4">
+						<div class="flex flex-wrap gap-2 mb-3">
+							{p.tags.map((t) => (
+								<span class="text-[11px] px-2 py-1 rounded bg-blue-900/40 border border-blue-800/60 text-blue-200">
+									{t}
+								</span>
+							))}
+						</div>
+						<p class="text-sm text-gray-300">{p.desc}</p>
+					</div>
+
+					<!-- Hidden images list for JS -->
+					<div class="hidden" data-carousel-images data-carousel-index={idx}>
+						{p.images.map((src) => (
+							<span data-src={src}></span>
+						))}
+					</div>
+				</div>
+			))
+		}
+	</div>
+</section>
+
+
+<script is:inline>
+	// Carousel logic per card (prev/next)
+	function getImagesForIndex(index) {
+		const list = document.querySelector(
+			`[data-carousel-images][data-carousel-index="${index}"]`
+		);
+		return Array.from(list?.querySelectorAll("span") || []).map((el) =>
+			el.getAttribute("data-src")
+		);
+	}
+
+	const imgEls = document.querySelectorAll("[data-carousel-img]");
+	const state = new Map(); // index -> current position
+
+	imgEls.forEach((img) => {
+		const idx = img.getAttribute("data-carousel-index");
+		if (!state.has(idx)) state.set(idx, 0);
+	});
+
+	function updateImage(index, delta) {
+		const imgs = getImagesForIndex(index);
+		if (!imgs.length) return;
+		const current = state.get(index) ?? 0;
+		let next = current + delta;
+		if (next < 0) next = imgs.length - 1;
+		if (next >= imgs.length) next = 0;
+		state.set(index, next);
+		const imgEl = document.querySelector(
+			`[data-carousel-img][data-carousel-index="${index}"]`
+		);
+		if (imgEl) {
+			imgEl.style.opacity = "0";
+			imgEl.style.transition = "opacity 200ms ease";
+			setTimeout(() => {
+				imgEl.setAttribute("src", imgs[next]);
+				imgEl.style.opacity = "1";
+			}, 200);
+		}
+	}
+
+	document.querySelectorAll("[data-carousel-prev]").forEach((btn) => {
+		btn.addEventListener("click", () => {
+			const idx = btn.getAttribute("data-carousel-index");
+			updateImage(idx, -1);
+		});
+	});
+	document.querySelectorAll("[data-carousel-next]").forEach((btn) => {
+		btn.addEventListener("click", () => {
+			const idx = btn.getAttribute("data-carousel-index");
+			updateImage(idx, 1);
+		});
+	});
+</script>

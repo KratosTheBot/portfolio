@@ -1,0 +1,281 @@
+---
+import { ClientRouter, ViewTransitions } from "astro:transitions";
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Astro Basics</title>
+		<ClientRouter />
+		<ViewTransitions />
+		<script is:inline>
+			(function () {
+				let started = false;
+				let rafId = null;
+				const init = () => {
+					// Evitar múltiples inicializaciones
+					if (started) return;
+					started = true;
+
+					const canvas = document.getElementById("lines-canvas");
+					if (!canvas) {
+						started = false;
+						return;
+					}
+					const ctx = canvas.getContext("2d");
+					const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+					const resize = () => {
+						canvas.width = Math.floor(window.innerWidth * dpr);
+						canvas.height = Math.floor(window.innerHeight * dpr);
+						canvas.style.width = window.innerWidth + "px";
+						canvas.style.height = window.innerHeight + "px";
+						ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+					};
+
+					resize();
+					window.addEventListener("resize", resize);
+
+					const colors = ["#ffffff", "#4da3ff"];
+					const lines = [];
+					const STRIPE = 2;
+					const SPACING = 32;
+					const maxLines = Math.min(
+						24,
+						Math.max(
+							12,
+							Math.floor(
+								(window.innerWidth + window.innerHeight) /
+									(SPACING * 3),
+							),
+						),
+					);
+
+					const rand = (min, max) =>
+						Math.random() * (max - min) + min;
+					const spawnLine = () => {
+						const dir = Math.random() < 0.5 ? "h" : "v";
+						const color =
+							Math.random() < 0.5 ? colors[0] : colors[1];
+						const thickness = STRIPE;
+						const length = Math.max(
+							80,
+							Math.min(360, Math.random() * 360),
+						);
+						const speed = rand(40, 140);
+						const alpha = rand(0.35, 0.8);
+						const gridX = () =>
+							Math.floor(
+								Math.random() *
+									Math.ceil(window.innerWidth / SPACING),
+							) *
+								SPACING +
+							STRIPE / 2;
+						const gridY = () =>
+							Math.floor(
+								Math.random() *
+									Math.ceil(window.innerHeight / SPACING),
+							) *
+								SPACING +
+							STRIPE / 2;
+
+						let x, y, vx, vy;
+						if (dir === "h") {
+							y = gridY();
+							x =
+								Math.random() < 0.5
+									? -length
+									: window.innerWidth + length;
+							vx = x < 0 ? speed : -speed;
+							vy = 0;
+						} else {
+							x = gridX();
+							y =
+								Math.random() < 0.5
+									? -length
+									: window.innerHeight + length;
+							vx = 0;
+							vy = y < 0 ? speed : -speed;
+						}
+						lines.push({
+							x,
+							y,
+							vx,
+							vy,
+							dir,
+							color,
+							thickness,
+							length,
+							alpha,
+						});
+					};
+
+					while (lines.length < maxLines) spawnLine();
+
+					let last = performance.now();
+					const tick = (now) => {
+						const dt = Math.min(0.05, (now - last) / 1000);
+						last = now;
+
+						ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+						for (let i = lines.length - 1; i >= 0; i--) {
+							const l = lines[i];
+							l.x += l.vx * dt;
+							l.y += l.vy * dt;
+
+							ctx.save();
+							ctx.globalAlpha = l.alpha;
+							ctx.strokeStyle = l.color;
+							ctx.lineWidth = l.thickness;
+							ctx.lineCap = "round";
+
+							ctx.beginPath();
+							if (l.dir === "h") {
+								ctx.moveTo(l.x, l.y);
+								ctx.lineTo(
+									l.x + (l.vx > 0 ? l.length : -l.length),
+									l.y,
+								);
+							} else {
+								ctx.moveTo(l.x, l.y);
+								ctx.lineTo(
+									l.x,
+									l.y + (l.vy > 0 ? l.length : -l.length),
+								);
+							}
+							ctx.stroke();
+							ctx.restore();
+
+							if (
+								l.dir === "h" &&
+								((l.vx > 0 &&
+									l.x - l.length > window.innerWidth) ||
+									(l.vx < 0 && l.x + l.length < 0))
+							) {
+								lines.splice(i, 1);
+							} else if (
+								l.dir === "v" &&
+								((l.vy > 0 &&
+									l.y - l.length > window.innerHeight) ||
+									(l.vy < 0 && l.y + l.length < 0))
+							) {
+								lines.splice(i, 1);
+							}
+						}
+
+						while (lines.length < maxLines) spawnLine();
+						rafId = requestAnimationFrame(tick);
+					};
+
+					rafId = requestAnimationFrame(tick);
+				};
+
+				const ready = () => {
+					init();
+				};
+
+				if (
+					document.readyState === "complete" ||
+					document.readyState === "interactive"
+				) {
+					ready();
+				} else {
+					window.addEventListener("DOMContentLoaded", ready, {
+						once: true,
+					});
+				}
+
+				// Re-inicializa tras cada navegación cliente (astro:transitions)
+				window.addEventListener("astro:page-load", () => {
+					// Cancela un RAF previo si existiera
+					if (rafId) cancelAnimationFrame(rafId);
+					// Permite nueva init
+					started = false;
+					ready();
+				});
+
+				// Opcional: restauración de scroll entre páginas para SPA
+				if ("scrollRestoration" in history) {
+					history.scrollRestoration = "manual";
+				}
+				window.addEventListener("astro:before-swap", () => {
+					sessionStorage.setItem(
+						"__scrollY",
+						String(window.scrollY || 0),
+					);
+				});
+				window.addEventListener("astro:after-swap", () => {
+					const y = Number(sessionStorage.getItem("__scrollY") || 0);
+					requestAnimationFrame(() => window.scrollTo(0, y));
+				});
+
+				// Soporta vuelta desde bfcache (navegación atrás/adelante)
+				window.addEventListener("pageshow", (e) => {
+					if (e.persisted) {
+						if (rafId) cancelAnimationFrame(rafId);
+						started = false;
+						ready();
+					}
+				});
+			})();
+		</script>
+	</head>
+	<body class="relative w-full h-screen overflow-hidden">
+		<canvas id="lines-canvas"></canvas>
+		<slot />
+	</body>
+</html>
+
+<style>
+	body {
+		margin: 0;
+		padding: 0;
+		box-sizing: border-box;
+		/* Fondo grisáceo */
+		background-color: #0f1115;
+		/* Líneas con tonos azul cobalto en patrón sutil */
+		background-image:
+			repeating-linear-gradient(
+				to right,
+				rgba(0, 71, 171, 0.18) 0px,
+				rgba(0, 71, 171, 0.18) 2px,
+				transparent 2px,
+				transparent 32px
+			),
+			repeating-linear-gradient(
+				to bottom,
+				rgba(0, 71, 171, 0.12) 0px,
+				rgba(0, 71, 171, 0.12) 2px,
+				transparent 2px,
+				transparent 32px
+			);
+		background-blend-mode: normal;
+	}
+	#lines-canvas {
+		position: fixed;
+		inset: 0;
+		z-index: -1; /* ensure always behind views */
+		pointer-events: none;
+		opacity: 0.6;
+	}
+	body > *:not(#lines-canvas) {
+		position: relative;
+		z-index: 1; /* content above lines */
+	}
+	@keyframes glow {
+		0% {
+			box-shadow: 0 0 0 0 rgba(77, 163, 255, 0);
+		}
+		50% {
+			box-shadow: 0 0 12px 2px rgba(77, 163, 255, 0.35);
+		}
+		100% {
+			box-shadow: 0 0 0 0 rgba(77, 163, 255, 0);
+		}
+	}
+</style>

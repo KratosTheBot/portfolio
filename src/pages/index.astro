@@ -1,0 +1,105 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Welcome from "../components/Welcome.astro";
+import "../styles/global.css";
+import About from "../components/About.astro";
+import Projects from "../components/Projects.astro";
+import Contact from "../components/Contact.astro";
+---
+
+<Layout>
+	<!-- Main view: Welcome | About -->
+	<section id="main" class="w-full">
+		<div id="main-welcome">
+			<section id="welcome" class="w-full">
+				<Welcome img="/me.jpg" />
+			</section>
+		</div>
+		<div id="main-about" class="hidden">
+			<About />
+		</div>
+	</section>
+
+	<!-- Sub view: Projects | Contact -->
+	<section id="sub" class="w-full mt-8">
+		<div id="sub-contact" class="hidden">
+			<Contact />
+		</div>
+	</section>
+
+	<script is:inline>
+		(function () {
+			const valid = {
+				main: ["welcome", "about"],
+				sub: ["projects", "contact"],
+			};
+			const order = {
+				main: ["welcome", "about"],
+			};
+			const els = {
+				main: {
+					welcome: document.getElementById("main-welcome"),
+					about: document.getElementById("main-about"),
+				},
+				sub: {
+					projects: document.getElementById("sub-projects"),
+					contact: document.getElementById("sub-contact"),
+				},
+			};
+			function parse() {
+				const raw = (location.hash || "#welcome|projects").slice(1);
+				const [main, sub] = raw.split("|");
+				return {
+					main: valid.main.includes(main) ? main : "welcome",
+					sub: valid.sub.includes(sub) ? sub : "projects",
+				};
+			}
+			function render(state) {
+				valid.main.forEach((k) =>
+					els.main[k].classList.toggle("hidden", k !== state.main),
+				);
+				valid.sub.forEach((k) =>
+					els.sub[k].classList.toggle("hidden", k !== state.sub),
+				);
+				// optional: focus active section for accessibility
+				const activeMain = document.getElementById(state.main);
+				activeMain?.focus?.();
+			}
+			function setState(area, value) {
+				const s = parse();
+				s[area] = value;
+				location.hash = `${s.main}|${s.sub}`;
+			}
+			window.addEventListener("hashchange", () => render(parse()));
+			document.addEventListener("click", (e) => {
+				const btn = e.target.closest("button[data-area][data-target]");
+				if (!btn) return;
+				const area = btn.getAttribute("data-area");
+				const target = btn.getAttribute("data-target");
+				if (valid[area]?.includes(target)) setState(area, target);
+			});
+			// explicit SPA navigation: area/target
+			window.addEventListener("spa:navigate", (e) => {
+				const area = e.detail?.area;
+				const target = e.detail?.target;
+				if (area && target && valid[area]?.includes(target)) {
+					setState(area, target);
+					return;
+				}
+				// fallback: prev/next for main area
+				const dir = e.detail?.direction; // 'prev' | 'next'
+				if (!dir) return;
+				const s = parse();
+				const idx = order.main.indexOf(s.main);
+				const nextIdx =
+					dir === "prev"
+						? Math.max(0, idx - 1)
+						: Math.min(order.main.length - 1, idx + 1);
+				const nextMain = order.main[nextIdx];
+				if (nextMain !== s.main) setState("main", nextMain);
+			});
+
+			render(parse());
+		})();
+	</script>
+</Layout>
