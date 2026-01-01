@@ -37,7 +37,7 @@ import PersonalNotesBlog from '../assets/images/personal-notes-blog.png';
 					tags: ["Expo", "React Native", "Laravel", "PostgreSQL", "Stripe"],
 					images: [
 					GlaizeaLogin.src,
-						GlaizeaList.src
+					GlaizeaList.src
 					],
 					link: "#"
 				},
@@ -72,7 +72,7 @@ import PersonalNotesBlog from '../assets/images/personal-notes-blog.png';
 					<!-- Carousel + title -->
 					<div class="relative">
 						<div
-							class="aspect-video bg-gray-900 overflow-hidden transition-all"
+							class="aspect-video bg-gray-900 overflow-hidden transition-all flex items-center justify-center"
 							data-carousel-container
 							data-carousel-index={idx}
 						>
@@ -150,7 +150,39 @@ import PersonalNotesBlog from '../assets/images/personal-notes-blog.png';
 </section>
 
 <script is:inline>
-	// Carousel logic per card (prev/next)
+	// Helper: check if image src is portrait (height > width)
+	function isPortrait(src) {
+		return new Promise((resolve) => {
+			const img = new Image();
+			img.onload = () => resolve(img.naturalHeight > img.naturalWidth);
+			img.onerror = () => resolve(false);
+			img.src = src;
+		});
+	}
+
+	async function applyFitClasses(index, src) {
+		const container = document.querySelector(
+			`[data-carousel-container][data-carousel-index="${index}"]`
+		);
+		const imgEl = document.querySelector(
+			`[data-carousel-img][data-carousel-index="${index}"]`
+		);
+		if (!container || !imgEl) return;
+
+		const portrait = await isPortrait(src);
+
+		// Container: ensure centered framing and reasonable heights
+		container.classList.toggle("aspect-video", !portrait);
+		container.classList.toggle("h-64", portrait);
+		container.classList.toggle("md:h-80", portrait);
+		container.classList.toggle("xl:h-[28rem]", portrait);
+		container.classList.add("flex", "items-center", "justify-center", "bg-gray-900");
+
+		// Image fit: show entire portrait images
+		imgEl.classList.toggle("object-cover", !portrait);
+		imgEl.classList.toggle("object-contain", portrait);
+	}
+
 	function getImagesForIndex(index) {
 		const list = document.querySelector(
 			`[data-carousel-images][data-carousel-index="${index}"]`
@@ -166,9 +198,13 @@ import PersonalNotesBlog from '../assets/images/personal-notes-blog.png';
 	imgEls.forEach((img) => {
 		const idx = img.getAttribute("data-carousel-index");
 		if (!state.has(idx)) state.set(idx, 0);
+
+		// Apply initial fit based on first image
+		const imgs = getImagesForIndex(idx);
+		if (imgs.length) applyFitClasses(idx, imgs[0]);
 	});
 
-	function updateImage(index, delta) {
+	async function updateImage(index, delta) {
 		const imgs = getImagesForIndex(index);
 		if (!imgs.length) return;
 		const current = state.get(index) ?? 0;
@@ -182,8 +218,9 @@ import PersonalNotesBlog from '../assets/images/personal-notes-blog.png';
 		if (imgEl) {
 			imgEl.style.opacity = "0";
 			imgEl.style.transition = "opacity 200ms ease";
-			setTimeout(() => {
+			setTimeout(async () => {
 				imgEl.setAttribute("src", imgs[next]);
+				await applyFitClasses(index, imgs[next]);
 				imgEl.style.opacity = "1";
 			}, 200);
 		}
