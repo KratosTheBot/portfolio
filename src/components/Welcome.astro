@@ -7,7 +7,7 @@ import AboutArrow from "./AboutArrow.astro";
 
 <section class="w-full min-h-screen text-gray-100 flex flex-col">
 	<!-- Intro hero -->
-	<div id="welcome" class="max-w-6xl mx-auto flex-1 flex items-center px-4">
+	<div id="welcome" class="max-w-6xl mx-auto flex-1 flex items-center">
 		<div class="w-full">
 			<!-- Foto grande en círculo encima del saludo -->
 			<div
@@ -236,6 +236,23 @@ import AboutArrow from "./AboutArrow.astro";
 	}
 	#projects-modal.active > div:last-child {
 		transform: translateY(0);
+	}
+</style>
+
+<style is:global>
+	@media (min-width: 768px) {
+		html,
+		body {
+			overflow: hidden;
+			height: 100%;
+		}
+	}
+	@media (max-width: 767px) {
+		html,
+		body {
+			overflow: auto;
+			height: auto;
+		}
 	}
 </style>
 
